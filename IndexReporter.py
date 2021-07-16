@@ -15,9 +15,9 @@ import logging
 
 #redis_conn = redis.Redis(host='localhost', port=6379, db=0)
 
-bot_token = '1359519581:AAGd60acQuItRGsICUHFTIC5m-_QhYFSXQ0'
-bot_chatID = '1359519581' #Bot
-bot_chatID = '-387605433' #MarketMessages group
+bot_token = ''
+bot_chatID = '' #Bot
+bot_chatID = '' #MarketMessages group
 
 indicesDir = "/Users/guest1/Downloads/bhavcopyDownloads/indices/"
 
