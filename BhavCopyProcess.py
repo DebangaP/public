@@ -33,9 +33,9 @@ bse_base_url = "https://www.bseindia.com/download/BhavCopy/Equity/"
 
 marketCap_file = "MCAP_31032020_0.csv"
 
-bot_token = '1359519581:AAGd60acQuItRGsICUHFTIC5m-_QhYFSXQ0'
-bot_chatID = '1053026020' #Bot  
-bot_chatID = '-387605433' #MarketMessages group
+bot_token = ''
+bot_chatID = '' #Bot  
+bot_chatID = '' #MarketMessages group
 
 #trading_holidays = ['16Nov2020', '30Nov2020', '25Dec2020']
 
