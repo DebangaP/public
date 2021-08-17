@@ -1,3 +1,3 @@
 # public
 
-Some of the previous version of code free to public
+Some old code, free to public
