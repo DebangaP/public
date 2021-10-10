@@ -1,0 +1,329 @@
+//@version=4
+
+// author: bricktownace@gmail.com
+
+//For personal use with no guarantees
+
+study("Strength Indicators", shorttitle="D-RS", overlay=true)
+
+//Inputs =>
+comparativeTickerId = input("CNX500", type=input.symbol, title="Comparative Symbol")
+length = input(50, type=input.integer, minval=1, title="Strength Period")
+//showMA = input(defval=false, type=input.bool, title="Show Moving Average")
+lengthMA = input(20, type=input.integer, minval=1, title="Moving Average Period")
+
+i_detectBuy  = input(true,  "Show Buy")
+i_thresholdBuy = input(0.01, type=input.float, minval=0.01, title="Buy Strength Threshold" )
+
+i_detectHold  = input(true,  "Show Hold")
+i_thresholdHold = input(0.05, type=input.float, minval=0.01, title="Hold Strength Threshold" )
+
+i_detectSell = input(true,  "Show Sell")
+i_thresholdSell = input(-0.03, type=input.float, minval=-0.01, title="Sell Strength Threshold" )
+
+i_detectVolumeBuySell = input(true, "Show Volume Buy/ Sell")
+i_volumeMultiple = input(5, type=input.integer, minval=2, title="Volume Multiple (X Ema)" )
+
+i_detectPriceBuySell = input(true, "Show Price Gain Buy/ Sell")
+i_priceGain = input(4.95, type=input.float, minval=2, title="Price gain percentage" )
+ibreakout = input(false, "Show breakouts")
+
+baseSymbol = security(syminfo.tickerid, timeframe.period, close)
+comparativeSymbol = security(comparativeTickerId, timeframe.period, close)
+
+res = baseSymbol / baseSymbol[length] / (comparativeSymbol / comparativeSymbol[length]) - 1
+sma_1 = sma(res, lengthMA)
+
+res_prev = baseSymbol[1] / baseSymbol[length+1] / (comparativeSymbol / comparativeSymbol[length + 1]) - 1
+res_prev5 = baseSymbol[5] / baseSymbol[length+5] / (comparativeSymbol / comparativeSymbol[length + 5]) - 1
+res_prev10 = baseSymbol[10] / baseSymbol[length+10] / (comparativeSymbol / comparativeSymbol[length + 10]) - 1
+
+if res > res_prev and res_prev > res_prev5
+    alert(" Go long ")
+
+// 20 sma and 50sma
+_20len = 20
+_50len = 50
+src = close
+offset = 0
+
+out = sma(src, _20len)
+plot(out, color=color.blue, title="MA20", offset=offset, linewidth=2)
+
+out1 = sma(src, _50len)
+plot(out1, color=color.red, title="MA50", offset=offset, linewidth=2)
+
+//
+
+// Calculate recent highest high and lowest low
+hiHighs = highest(close, lengthMA)[1]
+loLows  = lowest(close, lengthMA)[1]
+
+// Spot breakouts and check volume confirmation
+upBreak   = (close > hiHighs)
+downBreak = (close < loLows)
+
+_ema = ema(close, lengthMA)
+
+if ibreakout and (close - open[5])/ open[5] >= 0.1
+    upLabel = label.new(x=bar_index, y=na, yloc=yloc.abovebar, style=label.style_labeldown, color=color.lime, text="10% in\n 5 days", size=size.small, textcolor=color.black)
+    
+if ibreakout and (highest(close, 9)[1] - close)/ highest(close, 9)[1] >= 0.1
+    downLabel = label.new(x=bar_index, y=na, yloc=yloc.belowbar, style=label.style_labelup, color=color.orange, text="10% <\nhigh!", size=size.small, textcolor=color.black)
+
+if ibreakout and (lowest(close, 9)[1] - close)/ lowest(close, 9)[1] >= 0.1
+    upLabel = label.new(x=bar_index, y=na, yloc=yloc.belowbar, style=label.style_labelup, color=color.green, text="10% >\n low!", size=size.small, textcolor=color.black)
+
+if ibreakout and ((high -  low)/ close >= 0.15 and close < open)
+    downLabel = label.new(x=bar_index, y=na, yloc=yloc.belowbar, style=label.style_labelup, color=color.orange, text="Lanka \nlagega?\n(" + tostring(round(res,2)) + ", " + tostring(round(sma_1,2)) + ")", size=size.small, textcolor=color.black)
+
+//if close < _ema and ((_ema - close)/ _ema >= 0.07)
+//    downLabel = label.new(x=bar_index, y=na, yloc=yloc.belowbar, style=label.style_labelup, color=color.red, text="7% below EMA!", size=size.tiny, textcolor=color.white)
+
+volConfirm = (volume > volume[1]) and (volume[1] > volume[2]) and (volume[2] > volume[3]) 
+
+if i_detectBuy and (ibreakout and upBreak and volConfirm)
+    upLabel = label.new(x=bar_index, y=na, yloc=yloc.belowbar, style=label.style_labelup, color=color.lime, text="Up!\n(" + tostring(round(res,2)) + ")", size=size.small, textcolor=color.white)
+
+if i_detectSell and (ibreakout and downBreak and volConfirm) and (close < ema(close, lengthMA))
+    downLabel = label.new(x=bar_index, y=na, yloc=yloc.belowbar, style=label.style_labelup, color=color.orange, text="Down!\n(" + tostring(round(res,2)) + ")", size=size.tiny, textcolor=color.black)
+
+if i_detectBuy and ((close - open)/ open > i_priceGain/100) and i_detectPriceBuySell
+    downLabel = label.new(x=bar_index, y=na, yloc=yloc.belowbar, style=label.style_labelup, color=color.lime, text="P: " + tostring(round(close,2)) + "\n(" + tostring(round(res,2)) + ")", size=size.small, textcolor=color.black)
+
+if i_detectSell and ((open - close)/ open > i_priceGain/100) and i_detectPriceBuySell and close < ema(close, lengthMA)
+    upLabel = label.new(x=bar_index, y=na, yloc=yloc.belowbar, style=label.style_labelup, color=color.orange, text="P: " + tostring(round(close,2)) + "\n(" + tostring(round(res,2)) + ")", size=size.small, textcolor=color.black)
+
+if i_detectBuy and i_detectVolumeBuySell and (volume > i_volumeMultiple * ema(volume, lengthMA)) and close > open and res >= i_thresholdBuy 
+    downLabel = label.new(x=bar_index, y=na, yloc=yloc.belowbar, style=label.style_labelup, color=color.lime, text="V: " + tostring(round(close,2)) + "\n(" + tostring(round(res,2)) + ")", size=size.small, textcolor=color.black)
+
+if i_detectVolumeBuySell and (volume > i_volumeMultiple * ema(volume, 50)) and close >= open
+    upLabel = label.new(x=bar_index, y=na, yloc=yloc.abovebar, style=label.style_flag, color=color.lime, text="V-50-: " + tostring(round(close,2)) + "\n(" + tostring(round(res,2)) + ")", size=size.small, textcolor=color.black)
+  
+if i_detectVolumeBuySell and (volume > i_volumeMultiple * ema(volume, 50)) and close <= open
+    upLabel = label.new(x=bar_index, y=na, yloc=yloc.abovebar, style=label.style_flag, color=color.orange, text="V-50-: " + tostring(round(close,2)) + "\n(" + tostring(round(res,2)) + ")", size=size.small, textcolor=color.black)
+
+//if close < ema(close, lengthMA)
+//    emaLabel =  label.new(x=bar_index, y=na, yloc=yloc.belowbar, style=label.style_labelup, color=color.red, text="Close \below!", size=size.tiny, textcolor=color.white)
+
+
+//plot(res, title="RS", color=#1155CC)
+//plot(showMA ? sma_1 : na, color=color.white)
+//hline(0, linestyle=hline.style_dashed, linewidth=3, color=color.red)
+
+cross_over = crossover(res, i_thresholdBuy) //or crossover(sma_1, i_thresholdBuy)
+cross_under = crossunder(res, i_thresholdSell) //or crossunder(sma_1, i_thresholdSell)
+
+signal_Buy = i_detectBuy and (cross_over and res >= i_thresholdBuy) //and volConfirm
+signal_Sell = i_detectSell and (cross_under and res <= i_thresholdSell) //and close * 1.08 <= hiHighs //and (close * 1.05 < ema(close, 20))
+signal_Hold = i_detectHold and res >= i_thresholdHold
+
+//plotchar(signal_Buy,  "Go Long",  "B", location.bottom, color.lime, size = size.small)
+//plotchar(signal_Sell,  "Sell now",  "X", location.bottom, color.lime, size = size.small)
+
+plotchar(signal_Hold,  "Hold",  ".", location.belowbar, color.green, size = size.small)
+
+//plotchar(true,  "Hold",  ".", location.abovebar, color.blue, size = size.small)
+//vline(0, linestyle=hline.style_dashed, linewidth=3, color=color.red)
+
+//var label myLabel1 = label.new(x=bar_index, y=high + tr, textcolor=color.white, color=color.gray)
+//label.set_text(id=myLabel1, text="CX-: " + tostring(round(res,2)) + ", " + tostring(round(sma_1,2)))
+//label.set_x(id=myLabel1, x=bar_index)
+//label.set_y(id=myLabel1, y=high + 4*tr)
+//label.set_size(id=myLabel1, size=size.tiny)
+    
+vline(BarIndex, Color, LineStyle, LineWidth) =>
+    return = line.new(BarIndex, low - tr, BarIndex, high + tr, xloc.bar_index, extend.both, Color, LineStyle, LineWidth)
+
+if res >= 0.8 or res_prev >= 0.8
+    var label myLabel = label.new(x=bar_index, y=na, yloc=yloc.abovebar, textcolor=color.black, color=color.orange, style=label.style_labeldown)
+    label.set_text(id=myLabel, text="-hh- " + tostring(round(close,2)) + "\n(" + tostring(round(res,2)) + ")")
+    label.set_x(id=myLabel, x=bar_index)
+    label.set_y(id=myLabel, y=high + tr)
+    label.set_size(id=myLabel, size=size.small)
+
+if res >= 1.0
+    var label myLabel = label.new(x=bar_index, y=na, yloc=yloc.abovebar, textcolor=color.black, color=color.red, style=label.style_labeldown)
+    label.set_text(id=myLabel, text="R>1: " + tostring(round(close,2)) + "\n(" + tostring(round(res,2)) + ")")
+    label.set_x(id=myLabel, x=bar_index)
+    label.set_y(id=myLabel, y=high + tr)
+    label.set_size(id=myLabel, size=size.small)
+
+if (res_prev <= 0.00 and res >= i_thresholdBuy)
+    var label myLabel = label.new(x=bar_index, y=na, yloc=yloc.abovebar, textcolor=color.white, color=color.green, style=label.style_labeldown)
+    label.set_text(id=myLabel, text="R-X: " + tostring(round(close,2)) + "\n(" + tostring(round(res,2)) + ")")
+    label.set_x(id=myLabel, x=bar_index)
+    label.set_y(id=myLabel, y=high + tr)
+    label.set_size(id=myLabel, size=size.small)
+
+if (res <= i_thresholdSell and res_prev >= 0.00)
+    var label myLabel = label.new(x=bar_index, y=na, yloc=yloc.belowbar, textcolor=color.black, color=color.orange, style=label.style_labelup)
+    label.set_text(id=myLabel, text="S-X: " + tostring(round(close,2)) + "\n(" + tostring(round(res,2)) + ")")
+    label.set_x(id=myLabel, x=bar_index)
+    label.set_y(id=myLabel, y=high + tr)
+    label.set_size(id=myLabel, size=size.small)
+
+if (close > open and close > close[1] and open < open[1]) and (close - open)/ close > 0.05
+    var label myLabel = label.new(x=bar_index, y=na, yloc=yloc.belowbar, textcolor=color.black, color=color.lime, style=label.style_labelup)
+    label.set_text(id=myLabel, text="BE: " + tostring(round(close,2)) + "\n(" + tostring(round(res,2)) + ")")
+    label.set_x(id=myLabel, x=bar_index)
+    label.set_y(id=myLabel, y=high + tr)
+    label.set_size(id=myLabel, size=size.small)
+    
+if i_detectBuy and signal_Buy and (close >= open)
+    //vline(bar_index, #2c784b, line.style_dashed, 2)
+    var label myLabel = label.new(x=bar_index, y=na, yloc=yloc.abovebar, textcolor=color.white, color=color.green, style=label.style_labeldown)
+    label.set_text(id=myLabel, text="R: " + tostring(round(close,2)) + "\n(" + tostring(round(res,2)) + ")")
+    label.set_x(id=myLabel, x=bar_index)
+    label.set_y(id=myLabel, y=high + 10*tr)
+    label.set_size(id=myLabel, size=size.small)
+    
+if i_detectSell and signal_Sell and close < open //and (_ema - close)/_ema > 0.95
+    //vline(bar_index, #eb1f10, line.style_dashed, 2)
+    var label myLabel = label.new(x=bar_index, y=high + tr, textcolor=color.black, color=color.red)
+    label.set_text(id=myLabel, text="R: " + tostring(round(close,2)) + "\n(" + tostring(round(res,2)) + ")")
+    label.set_x(id=myLabel, x=bar_index)
+    label.set_y(id=myLabel, y=high + tr)
+    label.set_size(id=myLabel, size=size.small)  
+    
+    
+//if barstate.islast and not (signal_Sell or signal_Buy)
+//    var label myLabel = label.new(x=bar_index, y=high + tr, textcolor=color.white, color=color.gray)
+//    label.set_text(id=myLabel, text="S : " + tostring(round(res,2)))
+//    label.set_x(id=myLabel, x=bar_index)
+//    label.set_y(id=myLabel, y=high + tr)
+//   label.set_size(id=myLabel, size=size.tiny)
+
+//if cross_over or cross_under
+//    var label myLabel = label.new(x=bar_index, y=high + tr, textcolor=color.white, color=color.gray)
+//    label.set_text(id=myLabel, text="X-: " + tostring(round(res,2)) + ", " + tostring(round(sma_1,2)))
+//    label.set_x(id=myLabel, x=bar_index)
+//    label.set_y(id=myLabel, y=high + tr)
+//    label.set_size(id=myLabel, size=size.tiny)
+
+//hammmer
+if barstate.islast and (abs((close - open)/ close) > 0.005) and ((high - low) > 3* abs(close - open)) and (high - low) > 3*(high -close)
+    var label myLabel = label.new(x=bar_index, y=high + tr, textcolor=color.white, color=color.green)
+    label.set_text(id=myLabel, text="H-Buy : " + tostring(round(close,2)) + "\n(" + tostring(round(res,2)) + ")")
+    label.set_x(id=myLabel, x=bar_index)
+    label.set_y(id=myLabel, y=high + tr)
+    label.set_size(id=myLabel, size=size.small)
+
+
+// Fundamentals --->
+//period = input(defval="FQ", title='Period', options=["FQ", "FY"])
+i_showFundamentals  = input(true,  "Show Fundamentals")
+
+sharesFloat = financial(syminfo.tickerid, "FLOAT_SHARES_OUTSTANDING", "FY")
+tso = financial(syminfo.tickerid, "TOTAL_SHARES_OUTSTANDING", "FY")
+mcap = tso * close / 10000000
+
+totalRevenue = financial(syminfo.tickerid, "TOTAL_REVENUE", "FY")
+priceSalesRatio = (tso * close)/ totalRevenue
+
+fcf = financial(syminfo.tickerid, "FREE_CASH_FLOW", "FY") / 10000000
+
+
+ebitPer = financial(syminfo.tickerid, "EBITDA_MARGIN", "FY")
+
+fcfMargin = financial(syminfo.tickerid, "FREE_CASH_FLOW_MARGIN", "FY")
+PriceFCFRatio = financial(syminfo.tickerid, "PRICE_TO_FREE_CASH_FLOW", "FY")
+roic = financial(syminfo.tickerid, "RETURN_ON_INVESTED_CAPITAL", "FY")
+debtEquity = financial(syminfo.tickerid, "DEBT_TO_EQUITY", "FY")
+epsGrowth = financial(syminfo.tickerid, "EARNINGS_PER_SHARE_BASIC_ONE_YEAR_GROWTH", "FY")
+
+if barstate.islast and i_showFundamentals
+    var tbl = table.new(position.top_right, 2, 20)
+    table.set_bgcolor(tbl, color.aqua)
+    table.set_border_color(tbl, color.black)
+    table.set_border_width(tbl, 2)
+
+    table.cell(tbl, 0, 0, "Param", bgcolor = color.orange, text_size = size.small)
+    table.cell(tbl, 1, 0, "Value", bgcolor = color.orange, text_size = size.small)
+    //table.cell_set_text_size(tbl, 1, 0, size.small)
+    
+    var res_gain = res
+    if res < 0 and res_prev < 0
+        res_gain := round(100 * (abs(res_prev) - abs(res))/ abs(res_prev), 2)
+        //res_gain := 11
+    else
+        res_gain := round(100 * (res - res_prev)/ res_prev, 2)
+        //res_gain := 22
+    
+//    res_gain = round(100 * (res - res_prev)/ res_prev, 2)
+    res_gain_str = tostring(res_gain) + "%"
+    table.cell(tbl, 0, 1, "RS->(1)", text_size = size.small)
+    table.cell(tbl, 1, 1, tostring(round(res,2)) + " (" + (res_gain > 0 ? "+" : "") + res_gain_str + ")", bgcolor = res_gain >= 10 ? ((res > 0.1 and res < 0.8 )? color.green : color.yellow) : color.orange, text_size = size.small)
+
+    if res < 0 and res_prev5 < 0
+        res_gain := round(100 * (abs(res_prev5) - abs(res))/ abs(res_prev5), 2)
+    else
+        res_gain := round(100 * (res - res_prev5)/ res_prev5, 2)
+        
+    res_gain_str := tostring(res_gain) + "%"
+    table.cell(tbl, 0, 2, "RS->(5)", text_size = size.small)
+    table.cell(tbl, 1, 2, tostring(round(res_prev5,2)) + " (" + (res_gain > 0 ? "+" : "") + res_gain_str + ")" , bgcolor = res_gain >= 10 ? ((res_prev5 > 0.1 and res_prev5 < 0.8) ? color.green : color.yellow) : color.orange, text_size = size.small)
+
+    if res < 0 and res_prev10 < 0
+        res_gain := round(100 * (abs(res_prev10) - abs(res))/ abs(res_prev10), 2)
+    else
+        res_gain := round(100 * (res - res_prev10)/ res_prev10, 2)
+        
+    res_gain_str := tostring(res_gain) + "%"
+    table.cell(tbl, 0, 3, "RS->(10)", text_size = size.small)
+    table.cell(tbl, 1, 3, tostring(round(res_prev10,2)) + " (" + (res_gain > 0 ? "+" : "") + res_gain_str + ")", bgcolor = res_gain >= 20 ? ((res_prev10 > 0.1 and res_prev10 < 0.8) ? color.green : color.yellow) : color.orange, text_size = size.small)
+
+    table.cell(tbl, 0, 4, "M-Cap (Cr)", text_size = size.small)
+    table.cell(tbl, 1, 4, tostring(round(mcap,0)), text_size = size.small)
+
+    table.cell(tbl, 0, 5, "FCF (Cr)", text_size = size.small)
+    table.cell(tbl, 1, 5, tostring(round(fcf,0)), text_size = size.small)
+
+    table.cell(tbl, 0, 6, "EBITDA (%)", text_size = size.small)
+    table.cell(tbl, 1, 6, tostring(round(ebitPer,2)) + "%", bgcolor = ebitPer > 20 ? color.lime : color.orange, text_size = size.small)
+
+    table.cell(tbl, 0, 7, "FCF Margin (%)", text_size = size.small)
+    table.cell(tbl, 1, 7, tostring(round(fcfMargin,2)) + "%", text_size = size.small)
+
+    table.cell(tbl, 0, 8, "Price-FCF (%)", text_size = size.small)
+    table.cell(tbl, 1, 8, tostring(round(PriceFCFRatio,2)) + "%", text_size = size.small)
+
+    table.cell(tbl, 0, 9, "ROIC (%)", text_size = size.small)
+    table.cell(tbl, 1, 9, tostring(round(roic,2)) + "%", bgcolor = roic > 20 ? color.lime : color.orange, text_size = size.small)
+
+    table.cell(tbl, 0, 10, "EPS Growth (Rs)", text_size = size.small)
+    table.cell(tbl, 1, 10, tostring(round(epsGrowth,2)), bgcolor = epsGrowth > 5 ? color.lime : color.orange, text_size = size.small)
+
+    table.cell(tbl, 0, 11, "Debt to Equity (%)", text_size = size.small)
+    table.cell(tbl, 1, 11, tostring(round(debtEquity,2)), bgcolor = debtEquity > 0.5 ? color.orange : color.lime, text_size = size.small)
+
+    float = 100 * sharesFloat/ tso 
+
+    table.cell(tbl, 0, 12, "Shares float (%)", text_size = size.small)
+    table.cell(tbl, 1, 12, tostring(round(float,2)), bgcolor = float > 51 ? color.orange : color.lime, text_size = size.small)
+    
+    table.cell(tbl, 0, 13, "Price/ Sales (X)", text_size = size.small)
+    table.cell(tbl, 1, 13, tostring(round(priceSalesRatio,2)), bgcolor = priceSalesRatio > 5 ? color.orange : color.green, text_size = size.small)
+
+// Supertrend
+atrPeriod = input(10, "ATR Length")
+factor = input(3, "Factor")
+
+[supertrend, direction] = supertrend(factor, atrPeriod)
+
+bodyMiddle = plot((open + close) / 2, display=display.none)
+upTrend = plot(direction < 0 ? supertrend : na, "Up Trend", color = color.green, style=plot.style_linebr)
+downTrend = plot(direction < 0? na : supertrend, "Down Trend", color = color.red, style=plot.style_linebr)
+
+fill(bodyMiddle, upTrend, color.new(color.green, 90), fillgaps=false)
+fill(bodyMiddle, downTrend, color.new(color.red, 90), fillgaps=false)
+
+//upLabel1 = label.new(x=bar_index, y=na, yloc=yloc.abovebar, style=label.style_flag, color=color.orange, text="+: " + tostring(round(direction,2)), size=size.small, textcolor=color.black)
+
+//if direction < 0 
+//    upLabel = label.new(x=bar_index, y=na, yloc=yloc.abovebar, style=label.style_cross, color=color.green, size=size.tiny)
+
+//
+
+if barstate.islast
+    l = line.new(bar_index, low, bar_index[10], low[10], width = 2, color=color.maroon, style=line.style_dotted)
